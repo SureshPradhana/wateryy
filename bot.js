@@ -24,8 +24,18 @@ const WaterLogSchema = new Schema({
 	timestamp: { type: Date, default: Date.now, index: true }
 });
 
+// NEW: Suggestion Schema
+const SuggestionSchema = new Schema({
+	user_id: { type: String, required: true, index: true },
+	username: { type: String, required: true },
+	type: { type: String, enum: ['suggestion', 'issue'], required: true },
+	content: { type: String, required: true },
+	timestamp: { type: Date, default: Date.now, index: true }
+});
+
 const UserSettings = model('UserSettings', UserSettingsSchema);
 const WaterLog = model('WaterLog', WaterLogSchema);
+const Suggestion = model('Suggestion', SuggestionSchema);
 
 // ----------------- Connect to MongoDB -----------------
 async function connectMongo() {
@@ -666,6 +676,62 @@ client.on('interactionCreate', async interaction => {
 			);
 		await interaction.reply({ embeds: [embed], components: [row1, row2, row3] });
 	}
+	// /suggest command
+	else if (commandName === 'suggest') {
+		const type = interaction.options.getString('type');
+		const content = interaction.options.getString('content');
+
+		try {
+			const newSuggestion = new Suggestion({
+				user_id: interaction.user.id,
+				username: interaction.user.username,
+				type,
+				content
+			});
+
+			await newSuggestion.save();
+
+			const embed = new EmbedBuilder()
+				.setTitle('📬 Suggestion Submitted')
+				.setColor(0x2ecc71)
+				.addFields(
+					{ name: 'Type', value: type, inline: true },
+					{ name: 'Submitted By', value: interaction.user.username, inline: true },
+					{ name: 'Content', value: content }
+				)
+				.setTimestamp();
+
+			await interaction.reply({ embeds: [embed], ephemeral: true });
+
+		} catch (err) {
+			console.error('/suggest error:', err);
+			interaction.reply({ content: '❌ Could not save your suggestion.', ephemeral: true });
+		}
+	}
+	else if (commandName === 'help') {
+		const embed = new EmbedBuilder()
+			.setTitle('📘 Bot Help Menu')
+			.setColor(0x3498db)
+			.setDescription('Here are all available commands:')
+			.addFields(
+				{ name: '/start', value: 'Start water reminders' },
+				{ name: '/stop', value: 'Stop water reminders' },
+				{ name: '/set', value: 'Set timer & amount' },
+				{ name: '/add', value: 'Add manual water intake' },
+				{ name: '/stats', value: 'Show water stats with charts' },
+				{ name: '/setbmi', value: 'Set BMI data' },
+				{ name: '/waterintakeinfo', value: 'Show intake & BMI info' },
+				{ name: '/donate', value: 'Support the bot ❤️' },
+				{ name: '/suggest', value: 'Submit suggestions or issues' },
+				{ name: '/help', value: 'Show this help menu' }
+			)
+			.setFooter({ text: 'Thanks for using the bot!' })
+			.setTimestamp();
+
+		interaction.reply({ embeds: [embed], ephemeral: true });
+	}
+
+
 });
 
 // Register slash commands
@@ -732,7 +798,28 @@ client.once('ready', async () => {
 
 		new SlashCommandBuilder()
 			.setName('donate')
-			.setDescription('Support the bot with crypto donations')
+			.setDescription('Support the bot with crypto donations'),
+		new SlashCommandBuilder()
+			.setName('suggest')
+			.setDescription('Submit a suggestion or report an issue')
+			.addStringOption(option =>
+				option.setName('type')
+					.setDescription('Choose suggestion or issue')
+					.setRequired(true)
+					.addChoices(
+						{ name: 'Suggestion', value: 'suggestion' },
+						{ name: 'Issue', value: 'issue' }
+					)
+			)
+			.addStringOption(option =>
+				option.setName('content')
+					.setDescription('Write your suggestion or issue')
+					.setRequired(true)
+			),
+
+		new SlashCommandBuilder()
+			.setName('help')
+			.setDescription('Shows all bot commands and info'),
 	];
 
 	try {
