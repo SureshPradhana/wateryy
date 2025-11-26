@@ -740,6 +740,10 @@ client.on('interactionCreate', async interaction => {
 client.once('ready', async () => {
 	console.log(`Logged in as ${client.user.tag}!`);
 
+	client.user.setPresence({
+		status: "online",
+		activities: [{ name: "Drinking water 💧" }]
+	});
 	const commands = [
 		new SlashCommandBuilder()
 			.setName('start')
